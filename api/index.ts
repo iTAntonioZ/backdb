@@ -1,4 +1,4 @@
-// src/index.ts
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import serverlessExpress from '@vendia/serverless-express';
@@ -8,6 +8,7 @@ let server: Handler;
 
 async function bootstrap(): Promise<Handler> {
   const app = await NestFactory.create(AppModule);
+
   const expressApp = app.getHttpAdapter().getInstance();
 
   expressApp.use((req: any, res: any, next: any) => {
@@ -34,14 +35,8 @@ async function bootstrap(): Promise<Handler> {
   return serverlessExpress({ app: expressApp });
 }
 
-const handler: Handler = async (
-  event: any,
-  context: Context,
-  callback: Callback,
-) => {
+export default async function handler(event: any, context: Context, callback: Callback) {
   context.callbackWaitsForEmptyEventLoop = false;
   server = server ?? (await bootstrap());
   return server(event, context, callback);
-};
-
-export default handler;
+}
