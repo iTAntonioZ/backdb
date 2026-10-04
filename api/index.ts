@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
 import serverlessExpress from '@vendia/serverless-express';
 import { Callback, Context, Handler } from 'aws-lambda';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { AppModule } = require('../src/app.module');
 
 let server: Handler;
 
@@ -40,21 +42,6 @@ export const handler: Handler = async (
   callback: Callback,
 ) => {
   context.callbackWaitsForEmptyEventLoop = false;
-  try {
-    server = server ?? (await bootstrap());
-    return await server(event, context, callback);
-  } catch (error) {
-    console.error('Error durante la invocación de la función serverless:', error);
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: 'Internal server initialization error',
-        error: String(error),
-      }),
-    };
-  }
+  server = server ?? (await bootstrap());
+  return server(event, context, callback);
 };
