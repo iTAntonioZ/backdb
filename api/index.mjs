@@ -1,17 +1,24 @@
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
 import serverlessExpress from '@vendia/serverless-express';
-import { Callback, Context, Handler } from 'aws-lambda';
 
-let server: Handler;
+let server;
 
-async function bootstrap(): Promise<Handler> {
+async function bootstrap() {
+  const { NestFactory } = await import('@nestjs/core');
+  
+  // Cargar el módulo compilado
+  let AppModule;
+  try {
+    const mod = await import('../dist/src/app.module.js');
+    AppModule = mod.AppModule;
+  } catch (e) {
+    const mod = await import('../dist/app.module.js');
+    AppModule = mod.AppModule;
+  }
+
   const app = await NestFactory.create(AppModule);
-
   const expressApp = app.getHttpAdapter().getInstance();
 
-  expressApp.use((req: any, res: any, next: any) => {
+  expressApp.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
     res.header(
@@ -35,8 +42,9 @@ async function bootstrap(): Promise<Handler> {
   return serverlessExpress({ app: expressApp });
 }
 
-export default async function handler(event: any, context: Context, callback: Callback) {
-  context.callbackWaitsForEmptyEventLoop = false;
-  server = server ?? (await bootstrap());
-  return server(event, context, callback);
+export default async function handler(req, res) {
+  if (!server) {
+    server = await bootstrap();
+  }
+  return server(req, res);
 }
