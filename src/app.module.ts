@@ -5,6 +5,8 @@ import { PassportModule } from '@nestjs/passport';
 import { PrismaService } from './prisma/prisma.service';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
 
+import { AppController } from './app.controller';
+
 import { AuthController } from './controllers/auth.controller';
 import { AuthService } from './services/auth.service';
 
@@ -32,6 +34,7 @@ import { CategoriasService } from './services/categorias.service';
     }),
   ],
   controllers: [
+    AppController,
     AuthController,
     UsuariosController,
     ClientesController,
