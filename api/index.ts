@@ -1,4 +1,3 @@
-// api/index.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import serverlessExpress from '@vendia/serverless-express';
@@ -9,10 +8,8 @@ let server: Handler;
 async function bootstrap(): Promise<Handler> {
   const app = await NestFactory.create(AppModule);
 
-  // Obtener la instancia pura de Express
   const expressApp = app.getHttpAdapter().getInstance();
 
-  // Middleware manual para garantizar CORS en todas las rutas y métodos OPTIONS
   expressApp.use((req: any, res: any, next: any) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
@@ -21,7 +18,6 @@ async function bootstrap(): Promise<Handler> {
       'Content-Type, Authorization, Content-Length, X-Requested-With, Accept',
     );
 
-    // Responder inmediatamente con 200 OK a las peticiones preflight OPTIONS
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
     }
@@ -31,7 +27,7 @@ async function bootstrap(): Promise<Handler> {
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: false, // Con origin: '*' no se usa credentials: true
+    credentials: false,
   });
 
   await app.init();
@@ -43,8 +39,22 @@ export const handler: Handler = async (
   context: Context,
   callback: Callback,
 ) => {
-  // Evitar que Lambda/Vercel espere a que el event loop de Node quede vacío (ideal para DB pool)
   context.callbackWaitsForEmptyEventLoop = false;
-  server = server ?? (await bootstrap());
-  return server(event, context, callback);
+  try {
+    server = server ?? (await bootstrap());
+    return await server(event, context, callback);
+  } catch (error) {
+    console.error('Error durante la invocación de la función serverless:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: 'Internal server initialization error',
+        error: String(error),
+      }),
+    };
+  }
 };
