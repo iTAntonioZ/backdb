@@ -1,17 +1,56 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import serverlessExpress from '@vendia/serverless-express';
+import { Callback, Context, Handler } from 'aws-lambda';
 
-async function bootstrap() {
+let server: Handler;
+
+async function bootstrap(): Promise<Handler> {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({
-    origin: true, // Permite cualquier origen en desarrollo, o define la URL exacta de tu frontend en Vercel
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
+  const expressApp = app.getHttpAdapter().getInstance();
+
+  expressApp.use((req: any, res: any, next: any) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization, Content-Length, X-Requested-With, Accept',
+    );
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    next();
   });
 
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  console.log(`🚀 Servidor backend escuchando en http://localhost:${port}`);
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: false,
+  });
+
+  await app.init();
+  return serverlessExpress({ app: expressApp });
 }
-bootstrap();
+
+// Handler para Vercel Serverless
+export const handler: Handler = async (
+  event: any,
+  context: Context,
+  callback: Callback,
+) => {
+  context.callbackWaitsForEmptyEventLoop = false;
+  server = server ?? (await bootstrap());
+  return server(event, context, callback);
+};
+
+export default handler;
+
+// Soporte para ejecución en local (yarn start:dev)
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  bootstrap().then(async () => {
+    const app = await NestFactory.create(AppModule);
+    await app.listen(3000);
+  });
+}
