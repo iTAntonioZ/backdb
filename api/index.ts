@@ -4,7 +4,6 @@ import { Callback, Context, Handler } from 'aws-lambda';
 let server: Handler;
 
 async function bootstrap(): Promise<Handler> {
-  // Carga dinámica ESM para evitar el error ERR_REQUIRE_ESM de Vercel
   const { NestFactory } = await import('@nestjs/core');
   const { AppModule } = await import('../src/app.module.js');
 
@@ -35,7 +34,7 @@ async function bootstrap(): Promise<Handler> {
   return serverlessExpress({ app: expressApp });
 }
 
-export const handler: Handler = async (
+const handler: Handler = async (
   event: any,
   context: Context,
   callback: Callback,
@@ -44,3 +43,5 @@ export const handler: Handler = async (
   server = server ?? (await bootstrap());
   return server(event, context, callback);
 };
+
+export default handler;
