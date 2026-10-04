@@ -1,15 +1,14 @@
-import { NestFactory } from '@nestjs/core';
 import serverlessExpress from '@vendia/serverless-express';
 import { Callback, Context, Handler } from 'aws-lambda';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { AppModule } = require('../src/app.module');
 
 let server: Handler;
 
 async function bootstrap(): Promise<Handler> {
-  const app = await NestFactory.create(AppModule);
+  // Carga dinámica ESM para evitar el error ERR_REQUIRE_ESM de Vercel
+  const { NestFactory } = await import('@nestjs/core');
+  const { AppModule } = await import('../src/app.module.js');
 
+  const app = await NestFactory.create(AppModule);
   const expressApp = app.getHttpAdapter().getInstance();
 
   expressApp.use((req: any, res: any, next: any) => {
