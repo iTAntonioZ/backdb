@@ -1,56 +1,48 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-export class CrearClienteDto {
-  nombre: string;
-  email?: string;
-  telefono?: string;
-  rfc?: string;
-}
-
-export class ActualizarClienteDto {
-  nombre?: string;
-  email?: string;
-  telefono?: string;
-  rfc?: string;
-}
 
 @Injectable()
 export class ClientesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  listar() {
+  async findAll() {
     return this.prisma.cliente.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: {
-          select: { facturas: true, tickets: true },
-        },
-      },
+      orderBy: { nombre: 'asc' },
     });
   }
 
-  async obtenerPorId(id: number) {
-    const cliente = await this.prisma.cliente.findUnique({
+  async findOne(id: number) {
+    return this.prisma.cliente.findUnique({
       where: { id },
       include: { facturas: true, tickets: true },
     });
-    if (!cliente) throw new NotFoundException('Cliente no encontrado');
-    return cliente;
   }
 
-  crear(data: CrearClienteDto) {
-    return this.prisma.cliente.create({ data });
-  }
+  async create(data: {
+    nombre: string;
+    alias?: string;
+    rfc: string;
+    cp?: string;
+    regimen?: string;
+  }) {
+    const rfcLimpio = data.rfc.trim().toUpperCase();
 
-  actualizar(id: number, data: ActualizarClienteDto) {
-    return this.prisma.cliente.update({
-      where: { id },
-      data,
+    const existe = await this.prisma.cliente.findUnique({
+      where: { rfc: rfcLimpio },
     });
-  }
 
-  eliminar(id: number) {
-    return this.prisma.cliente.delete({ where: { id } });
+    if (existe) {
+      throw new BadRequestException(`Ya existe un cliente registrado con el RFC ${rfcLimpio}`);
+    }
+
+    return this.prisma.cliente.create({
+      data: {
+        nombre: data.nombre.trim(),
+        alias: data.alias ? data.alias.trim() : null,
+        rfc: rfcLimpio,
+        cp: data.cp ? data.cp.trim() : null,
+        regimen: data.regimen ? data.regimen.trim() : null,
+      },
+    });
   }
 }

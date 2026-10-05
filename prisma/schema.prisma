@@ -7,6 +7,7 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
+
 enum Rol {
   ADMIN
   OPERADOR
@@ -32,45 +33,71 @@ model Usuario {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  facturas  Factura[]
-  tickets   Ticket[]
+  facturas Factura[]
+  tickets  Ticket[]
 }
 
 model Cliente {
   id        Int       @id @default(autoincrement())
   nombre    String
-  email     String?   @unique
-  telefono  String?
-  rfc       String?   @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
+  alias     String?
+  rfc       String    @unique
+  cp        String?
+  regimen   String?
   facturas  Factura[]
   tickets   Ticket[]
+  createdAt DateTime  @default(now())
 }
 
 model Factura {
-  id        Int       @id @default(autoincrement())
-  folio     String    @unique
-  monto     Decimal   @db.Decimal(12, 2)
-  estado    String    @default("PENDIENTE")
-  clienteId Int
-  cliente   Cliente   @relation(fields: [clienteId], references: [id], onDelete: Restrict)
-  usuarioId Int
-  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  // Relación con el usuario que emite la factura
+  usuarioId Int?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  // Datos Emisor
+  emisorRfc     String
+  emisorNombre  String
+  emisorRegimen String
+  emisorCp      String
+
+  // Relación opcional con Cliente existente
+  clienteId Int?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  // Datos Receptor
+  receptorRfc     String
+  receptorNombre  String
+  receptorCp      String
+  receptorRegimen String
+  usoCfdi         String
+
+  // Totales y conceptos
+  total     Float
+  conceptos ConceptoFactura[]
+  createdAt DateTime          @default(now())
+}
+
+model ConceptoFactura {
+  id            String  @id @default(uuid())
+  facturaId     String
+  factura       Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  cantidad      Float
+  unidadMedida  String
+  descripcion   String
+  valorUnitario Float
+  importe       Float
 }
 
 model Ticket {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   titulo    String
   detalle   String
-  estado    String    @default("ABIERTO")
+  estado    String   @default("ABIERTO")
   clienteId Int
-  cliente   Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   usuarioId Int
-  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

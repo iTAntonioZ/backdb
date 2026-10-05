@@ -1,54 +1,43 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-export class CrearTicketDto {
-  titulo: string;
-  detalle: string;
-  clienteId: number;
-}
-
-export class ActualizarEstadoTicketDto {
-  estado: string;
-}
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  listar() {
+  async findAll() {
     return this.prisma.ticket.findMany({
       include: {
-        cliente: { select: { id: true, nombre: true } },
-        usuario: { select: { id: true, username: true } },
+        cliente: true,
+        usuario: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
-  async obtenerPorId(id: number) {
-    const ticket = await this.prisma.ticket.findUnique({
-      where: { id },
-      include: { cliente: true, usuario: true },
-    });
-    if (!ticket) throw new NotFoundException('Ticket no encontrado');
-    return ticket;
-  }
+  async create(data: any) {
+    const clienteId = Number(data.clienteId);
+    const usuarioId = Number(data.usuarioId);
 
-  crear(data: CrearTicketDto & { usuarioId: number }) {
+    // Validación para evitar pasar NaN a Prisma
+    if (isNaN(clienteId) || isNaN(usuarioId)) {
+      throw new BadRequestException('Debes proporcionar un clienteId y usuarioId válidos');
+    }
+
     return this.prisma.ticket.create({
       data: {
-        titulo: data.titulo,
-        detalle: data.detalle,
-        clienteId: data.clienteId,
-        usuarioId: data.usuarioId,
+        titulo: data.titulo || data.asunto,
+        detalle: data.detalle || data.descripcion,
+        estado: data.estado || 'PENDIENTE',
+        clienteId: clienteId,
+        usuarioId: usuarioId,
       },
-    });
-  }
-
-  cambiarEstado(id: number, estado: string) {
-    return this.prisma.ticket.update({
-      where: { id },
-      data: { estado },
+      include: {
+        cliente: true,
+        usuario: true,
+      },
     });
   }
 }
